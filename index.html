@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Dashboard - Live Updates</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h1 class="logo">AutoDash</h1>
+            <div id="update-indicator" class="update-indicator">データ同期状態: チェック中...</div>
+
+            <div class="filters">
+                <div class="filter-group">
+                    <label>年 (Year)</label>
+                    <select id="year-filter">
+                        <option value="all">通年 (All Years)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>月 (Month)</label>
+                    <select id="month-filter">
+                        <option value="all">通月 (All Months)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>地域 (Region)</label>
+                    <select id="region-filter">
+                        <option value="total">すべて (国内＋海外)</option>
+                        <option value="domestic">国内のみ (Domestic)</option>
+                        <option value="overseas">海外のみ (Overseas)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>メーカー (Maker)</label>
+                    <select id="maker-filter">
+                        <option value="all">すべて</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>ボディタイプ (Body Type)</label>
+                    <select id="type-filter">
+                        <option value="all">すべて</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>セグメント (Segment)</label>
+                    <select id="seg-filter">
+                        <option value="all">すべて</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>車種名 (Car Name)</label>
+                    <select id="car-filter">
+                        <option value="all">すべて</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="car-info-card" id="car-info-card" style="display: none;">
+                <h3>車種基本情報</h3>
+                <p><strong>名称:</strong> <span id="info-name">-</span></p>
+                <p><strong>メーカー:</strong> <span id="info-maker">-</span></p>
+                <p><strong>タイプ:</strong> <span id="info-type">-</span></p>
+                <p><strong>クラス:</strong> <span id="info-seg">-</span></p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="stat-card">
+                    <h3>総生産数</h3>
+                    <p class="stat-value" id="total-production">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>総販売数</h3>
+                    <p class="stat-value" id="total-sales">0</p>
+                </div>
+            </header>
+
+            <section class="chart-section">
+                <div class="chart-container">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </section>
+
+            <section class="table-section">
+                <div class="table-container">
+                    <table id="data-table">
+                        <thead>
+                            <tr>
+                                <th>車種名</th>
+                                <th>メーカー</th>
+                                <th>タイプ</th>
+                                <th>セグメント</th>
+                                <th>年</th>
+                                <th>月</th>
+                                <th>生産数</th>
+                                <th>販売数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Rows injected via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

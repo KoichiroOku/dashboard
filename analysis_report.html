@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全車種 多変量解析・動的ダッシュボード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0f172a',
+                        darker: '#020617',
+                        primary: '#38bdf8',
+                        secondary: '#818cf8',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+            border-radius: 1rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 450px;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .filter-btn {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-btn.active {
+            background: #38bdf8;
+            color: #000;
+            font-weight: bold;
+            border-color: #38bdf8;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-[1400px] mx-auto">
+        <header class="mb-8 text-center border-b border-slate-800 pb-8">
+            <h1
+                class="text-3xl md:text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                多変量解析 動的ダッシュボード</h1>
+            <p class="text-slate-400 text-lg">フィルター操作により分析散布図内の表示車種をリアルタイムに絞り込みます。</p>
+        </header>
+
+        <!-- Dynamic Filter Control Panel -->
+        <section class="glass-panel p-6 mb-8 sticky top-4 z-50 shadow-2xl border border-primary/30">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white"><i class="fas fa-filter"></i> 表示フィルター (複数選択可)</h2>
+                <button id="btn-reset"
+                    class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded text-sm transition">すべてリセット</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <h3 class="text-sm text-slate-400 mb-2 font-bold">セグメント</h3>
+                    <div id="filter-segment" class="filter-group"></div>
+                </div>
+                <div>
+                    <h3 class="text-sm text-slate-400 mb-2 font-bold">カテゴリー</h3>
+                    <div id="filter-category" class="filter-group"></div>
+                </div>
+                <div>
+                    <h3 class="text-sm text-slate-400 mb-2 font-bold">クラスター (分類グループ)</h3>
+                    <div id="filter-cluster" class="filter-group"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Table (Dynamic) -->
+        <section class="glass-panel p-6 mb-8 lg:col-span-2">
+            <h2 class="text-2xl font-bold mb-4 flex items-center"><span class="w-2 h-8 bg-blue-500 rounded mr-3"></span>車種データ・クラスター分類表</h2>
+            <div class="overflow-x-auto rounded-lg border border-slate-700 max-h-[400px]">
+                <table class="w-full text-sm text-left text-slate-300">
+                    <thead class="text-xs uppercase bg-slate-800 text-slate-400 sticky top-0 z-10 shadow-md">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">車種名</th>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">メーカー</th>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">カテゴリー</th>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">セグメント</th>
+                            <th scope="col" class="px-6 py-3 whitespace-nowrap">クラスター</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cars-table-body" class="divide-y divide-slate-700/50">
+                        <!-- JS injected -->
+                    </tbody>
+                </table>
+            </div>
+            <p id="table-count" class="mt-2 text-right text-sm text-slate-400"></p>
+        </section>
+
+        <!-- Charts Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- CS Portfolio Cars (Dynamic) -->
+            <section class="glass-panel p-6 flex flex-col lg:col-span-2">
+                <h2 class="text-2xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-8 bg-emerald-500 rounded mr-3"></span>1. 車種 CSポートフォリオ (総合評価 vs コスパ)</h2>
+                <p class="text-slate-300 mb-2 text-sm">偏差値ベース。フィルターにより特定セグメントやボディタイプの市場ポジションを浮き彫りにします。</p>
+                <div class="chart-container" style="height: 600px;">
+                    <canvas id="chart-cs-cars"></canvas>
+                </div>
+            </section>
+
+            <!-- CS Portfolio Items (Static Reference) -->
+            <section class="glass-panel p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-6 bg-lime-400 rounded mr-3"></span>2. 評価項目 CSポートフォリオ (重要度 vs 達成度)</h2>
+                <div class="chart-container">
+                    <canvas id="chart-cs-items"></canvas>
+                </div>
+            </section>
+
+            <!-- PCA Cars (Dynamic) -->
+            <section class="glass-panel p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-6 bg-primary rounded mr-3"></span>3. PCA 車種ポジショニングマップ</h2>
+                <div class="chart-container">
+                    <canvas id="chart-pca-cars"></canvas>
+                </div>
+            </section>
+
+            <!-- PCA Variables (Static Reference) -->
+            <section class="glass-panel p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-6 bg-sky-400 rounded mr-3"></span>4. PCA 30評価項目マップ</h2>
+                <div class="chart-container">
+                    <canvas id="chart-pca-vars"></canvas>
+                </div>
+            </section>
+
+            <!-- CA & Q3 (Dynamic) -->
+            <section class="glass-panel p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-6 bg-pink-400 rounded mr-3"></span>5. コレスポンデンス分析 (車種名 vs カテゴリ)</h2>
+                <div class="chart-container">
+                    <canvas id="chart-ca"></canvas>
+                </div>
+            </section>
+            <section class="glass-panel p-6 flex flex-col">
+                <h2 class="text-xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-6 bg-purple-400 rounded mr-3"></span>6. 数量化理論III類 (車種名 vs セグメント)</h2>
+                <div class="chart-container">
+                    <canvas id="chart-q3"></canvas>
+                </div>
+            </section>
+
+            <!-- Regressions (Static Models) -->
+            <section class="glass-panel p-6 flex flex-col lg:col-span-2">
+                <h2 class="text-2xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-8 bg-amber-400 rounded mr-3"></span>7. 重回帰分析 偏回帰係数 (全車種ベースの静的モデル)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="chart-container h-[500px]">
+                        <h3 class="text-center text-sm font-bold text-amber-300">目的変数：総合評価(15点)</h3>
+                        <canvas id="chart-reg-score"></canvas>
+                    </div>
+                    <div class="chart-container h-[500px]">
+                        <h3 class="text-center text-sm font-bold text-amber-500">目的変数：車両販売価格</h3>
+                        <canvas id="chart-reg-price"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quant1 (Static Models) -->
+            <section class="glass-panel p-6 flex flex-col lg:col-span-2">
+                <h2 class="text-2xl font-bold mb-2 flex items-center"><span
+                        class="w-2 h-8 bg-teal-400 rounded mr-3"></span>8. 数量化理論I類 回帰係数 (全車種ベースの静的モデル)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="chart-container h-[400px]">
+                        <h3 class="text-center text-sm font-bold text-teal-300">目的変数：総合評価(15点)</h3>
+                        <canvas id="chart-q1-score"></canvas>
+                    </div>
+                    <div class="chart-container h-[400px]">
+                        <h3 class="text-center text-sm font-bold text-teal-500">目的変数：車両販売価格</h3>
+                        <canvas id="chart-q1-price"></canvas>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Dendrogram (Static Image) -->
+        <section class="glass-panel p-6 mt-8">
+            <h2 class="text-2xl font-bold mb-4 flex items-center"><span class="w-2 h-8 bg-indigo-500 rounded mr-3"></span>9. 階層型クラスター分析 (トーナメント表 / デンドログラム)</h2>
+            <p class="text-slate-300 mb-4 text-sm">全120車種の類似度に基づき、どのようにグループ（クラスター）が形成されているかを示す階層図です。結合位置が左にあるほど、車同士の特徴（評価特性）が似ていることを示します。<br><span class="text-xs text-amber-400">※ この図は全車種を通じた総合的な分類体系を示す静的モデルのため、上部のフィルター選択とは連動しません。上下にスクロールしてご確認ください。</span></p>
+            <div class="bg-white rounded-lg p-4 overflow-y-auto" style="max-height: 800px;">
+                <img src="analysis_dendrogram.svg" alt="デンドログラム" class="w-full h-auto">
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Load Data and App -->
+    <script src="analysis_data.js"></script>
+    <script src="analysis_app.js"></script>
+</body>
+
+</html>
